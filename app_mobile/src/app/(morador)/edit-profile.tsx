@@ -5,7 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isAxiosError } from 'axios';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import api from '../../services/api';
 import type { Usuario } from '../../services/authService';
 
@@ -64,13 +64,14 @@ export default function EditarPerfilScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#0284C7', '#0369A1']} style={styles.headerBackground}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={28} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Meu Perfil</Text>
-      </LinearGradient>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <LinearGradient colors={['#0284C7', '#0369A1']} style={styles.headerBackground}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={28} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Meu Perfil</Text>
+        </LinearGradient>
 
       <View style={styles.profileSection}>
         <TouchableOpacity style={styles.avatarContainer} onPress={escolherFoto}>
@@ -131,7 +132,8 @@ export default function EditarPerfilScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

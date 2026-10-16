@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import api from '../../../services/api';
 import type { Problema } from '../../../services/problemService';
 
@@ -9,6 +9,11 @@ interface Comentario {
   comentario: string;
   data: string;
   nome_usuario: string;
+}
+
+function obterNomeDoAutor(nomeUsuario: string) {
+  const nome = nomeUsuario.trim();
+  return nome && !nome.includes('@') ? nome : 'Morador';
 }
 
 export default function ProblemaScreen() {
@@ -56,8 +61,9 @@ export default function ProblemaScreen() {
   const photoUrl = problem.foto ? `${api.defaults.baseURL}${problem.foto}` : null;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.card}>
         <Text style={styles.category}>{problem.categoria}</Text>
         <Text style={styles.description}>{problem.descricao}</Text>
         <Text style={styles.status}>Status: {problem.status}</Text>
@@ -75,13 +81,14 @@ export default function ProblemaScreen() {
       </View>
       {comments.map((item) => (
         <View key={item.id} style={styles.commentCard}>
-          <Text style={styles.author}>{item.nome_usuario}</Text>
+          <Text style={styles.author}>{obterNomeDoAutor(item.nome_usuario)}</Text>
           <Text style={styles.commentText}>{item.comentario}</Text>
           <Text style={styles.date}>{new Date(item.data).toLocaleString('pt-BR')}</Text>
         </View>
       ))}
       {!comments.length && <Text style={styles.empty}>Ainda não há comentários neste relato.</Text>}
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

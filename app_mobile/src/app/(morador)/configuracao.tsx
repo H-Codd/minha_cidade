@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import { isAxiosError } from 'axios';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import api from '../../services/api';
 import { encerrarSessao, type Usuario } from '../../services/authService';
+import { getApiErrorMessage } from '../../services/errorMessage';
 import { registrarNotificacoesPush } from '../../services/pushNotifications';
 
 export default function MoradorConfiguracaoScreen() {
@@ -32,7 +34,12 @@ export default function MoradorConfiguracaoScreen() {
       }
       setPushEnabled(enabled);
     } catch (error) {
-      Alert.alert('Notificações', error instanceof Error ? error.message : 'Não foi possível atualizar esta preferência.');
+      Alert.alert(
+        'Notificações',
+        error instanceof Error && !isAxiosError(error)
+          ? error.message
+          : getApiErrorMessage(error, 'Não foi possível atualizar esta preferência.'),
+      );
     } finally {
       setPushLoading(false);
     }

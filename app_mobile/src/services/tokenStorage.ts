@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const tokenKey = '@minha_cidade_token';
+const tokenKey = 'minha_cidade_token';
 
 export async function lerToken() {
   return Platform.OS === 'web'

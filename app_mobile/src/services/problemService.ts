@@ -1,4 +1,3 @@
-import * as Location from 'expo-location';
 import api from './api';
 
 export interface Problema {
@@ -32,18 +31,25 @@ export async function enviarOcorrencia(
   description: string,
   categoryId: number,
   photoUri: string,
+  latitude: number,
+  longitude: number,
 ) {
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') {
-    throw new Error('Permissão de localização negada.');
+  if (
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    throw new Error('Selecione um local válido no mapa antes de enviar o relato.');
   }
 
-  const location = await Location.getCurrentPositionAsync({});
   const form = new FormData();
   form.append('description', description.trim());
   form.append('category_id', String(categoryId));
-  form.append('latitude', String(location.coords.latitude));
-  form.append('longitude', String(location.coords.longitude));
+  form.append('latitude', String(latitude));
+  form.append('longitude', String(longitude));
 
   const extension = photoUri.split('.').pop()?.split('?')[0] || 'jpg';
   form.append('foto', {
@@ -52,8 +58,6 @@ export async function enviarOcorrencia(
     type: `image/${extension === 'jpg' ? 'jpeg' : extension}`,
   } as unknown as Blob);
 
-  const { data } = await api.post<Problema>('/problems', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const { data } = await api.post<Problema>('/problems', form);
   return data;
 }

@@ -1,8 +1,7 @@
-require('dotenv').config();
-
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const express = require('express');
@@ -10,10 +9,17 @@ const jwt = require('jsonwebtoken');
 const mysql = require('mysql2/promise');
 const multer = require('multer');
 
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
+
 const requiredEnvironment = ['MYSQL_HOST', 'MYSQL_USER', 'MYSQL_DATABASE', 'JWT_SECRET'];
 const missingEnvironment = requiredEnvironment.filter((key) => !process.env[key]);
 if (missingEnvironment.length) {
-  throw new Error(`Configure as variáveis obrigatórias no .env: ${missingEnvironment.join(', ')}`);
+  const databaseVariables = missingEnvironment.filter((key) => key.startsWith('MYSQL_'));
+  const message = databaseVariables.length
+    ? `Configure o MySQL em app_mobile/server/.env (use .env.example como modelo): ${databaseVariables.join(', ')}.`
+    : `Configure as variáveis obrigatórias no .env: ${missingEnvironment.join(', ')}.`;
+  throw new Error(message);
 }
 if (process.env.JWT_SECRET.length < 32) {
   throw new Error('JWT_SECRET precisa ter pelo menos 32 caracteres.');
@@ -323,24 +329,35 @@ app.post('/problems', autenticar, upload.single('foto'), async (request, respons
     return responderErro(response, 400, 'Envie categoria, descrição (10 a 1000 caracteres), foto e localização válidas.');
   }
 
+  let connection;
+  let savedProblem;
   try {
-    const [categories] = await pool.execute('SELECT id FROM categorias WHERE id = ? LIMIT 1', [categoryId]);
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    const [categories] = await connection.execute('SELECT id FROM categorias WHERE id = ? LIMIT 1', [categoryId]);
     if (!categories[0]) {
+      await connection.rollback();
       await fs.promises.unlink(photo.path);
       return responderErro(response, 400, 'A categoria selecionada não existe.');
     }
     const photoPath = `/uploads/${photo.filename}`;
-    const [result] = await pool.execute(
+    const [result] = await connection.execute(
       `INSERT INTO problemas (descricao, foto, latitude, longitude, id_usuario, id_categoria)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [description.trim(), photoPath, latitude, longitude, request.user.sub, categoryId],
     );
-    const [rows] = await pool.execute(`${selecionarProblemas} WHERE p.id = ? LIMIT 1`, [result.insertId]);
-    return response.status(201).json(rows[0]);
+    const [rows] = await connection.execute(`${selecionarProblemas} WHERE p.id = ? LIMIT 1`, [result.insertId]);
+    if (!rows[0]) throw new Error('O relato foi inserido, mas não pôde ser confirmado no banco de dados.');
+    savedProblem = rows[0];
+    await connection.commit();
   } catch (error) {
+    if (connection) await connection.rollback();
     await fs.promises.unlink(photo.path);
     throw error;
+  } finally {
+    connection?.release();
   }
+  return response.status(201).json(savedProblem);
 });
 
 async function enviarNotificacao(token, problemId, status) {
