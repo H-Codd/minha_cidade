@@ -31,6 +31,23 @@ Requisitos: Node.js 18 ou mais recente e MySQL 8.
 
    Faça login novamente nessa conta para abrir o painel. O cadastro público sempre cria moradores; não existe criação pública de administradores.
 
+## Deploy da API no Render com MySQL no Railway
+
+O repositório inclui `render.yaml` na raiz. Faça push das alterações para o GitHub e, no Render, crie um Blueprint apontando para esse repositório. Confirme que o serviço `minha-cidade-api` usa o arquivo `render.yaml`.
+
+1. No Railway, crie ou selecione o serviço MySQL e habilite o **TCP Proxy** para conexões externas. O hostname privado `*.railway.internal` só funciona dentro da rede Railway e não pode ser usado pela API no Render.
+2. Inicialize o banco executando `server\database\schema.sql` contra o MySQL do Railway. Esse script cria e seleciona o banco `minha_cidade`; configure `MYSQL_DATABASE=minha_cidade` no Render. Mantenha host, porta, usuário e senha do proxy TCP conforme exibidos pelo Railway.
+3. No Render, preencha as variáveis `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` e `MYSQL_DATABASE` com os dados do Railway, e `JWT_SECRET` com um segredo aleatório de pelo menos 32 caracteres. Não defina `PORT`: o Render fornece essa variável. Gere um segredo no PowerShell com:
+
+   ```powershell
+   node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+   ```
+
+4. Aguarde o deploy e confirme que `https://SUA-API.onrender.com/health` retorna `{"status":"ok"}`. Esse endpoint também verifica a conexão ao banco.
+5. Configure `EXPO_PUBLIC_API_URL` no ambiente EAS usado pela build Android para a URL HTTPS da API, sem `/health` no final, e gere uma nova build. A URL é pública; não coloque nela credenciais ou segredos.
+
+Este serviço está configurado no plano gratuito do Render e as fotos ficam no disco efêmero da instância. Elas podem desaparecer quando o serviço reiniciar ou for publicado novamente; use apenas para testes até configurar armazenamento persistente ou de objetos.
+
 ## Aplicativo Android
 
 Na pasta `app_mobile`, instale as dependências e inicie o Expo:
@@ -44,6 +61,31 @@ npx expo start
 Copie `.env.example` para `.env`. O emulador Android usa `10.0.2.2` para alcançar o servidor local. Em aparelho físico, configure `EXPO_PUBLIC_API_URL` com o endereço IP local do computador, por exemplo `http://192.168.1.20:3000`; o telefone e o computador precisam estar na mesma rede. Para produção, use a URL HTTPS pública da API.
 
 O morador pode criar relatos com categoria, descrição, foto e local escolhido no mapa; consultar o histórico; acompanhar os relatos no mapa e comentar em cada ocorrência. A prefeitura pode consultar os relatos em lista/mapa, alterar status e gerir categorias.
+
+## Compartilhar APK Android por link
+
+Para demonstrar o app a outras pessoas sem publicar na Play Store, use o perfil `preview`. Ele gera um APK de instalação direta e um link de distribuição do EAS. Cada pessoa precisa de Android e de conexão com a internet para acessar a API e carregar os mapas.
+
+1. Configure a URL HTTPS pública da API no ambiente `preview` do EAS:
+
+   ```powershell
+   cd app_mobile
+   npx eas-cli@latest login
+   npx eas-cli@latest env:set --name EXPO_PUBLIC_API_URL --value https://SEU-DOMINIO --environment preview --visibility plaintext
+   ```
+
+   Substitua `https://SEU-DOMINIO` pela URL raiz real da API (sem `/api` no final). Essa URL é embutida no aplicativo e, portanto, não deve conter senhas, tokens ou outros segredos. Antes da build, confira `https://SEU-DOMINIO/health` e confirme que a API responde `{"status":"ok"}`.
+2. Gere o APK:
+
+   ```powershell
+   npx eas-cli@latest build --platform android --profile preview
+   ```
+
+3. Quando a build terminar, abra o link fornecido pelo EAS no celular Android ou envie esse link aos participantes. O link de distribuição interna pode ser acessado por qualquer pessoa que o tenha; compartilhe-o apenas com quem deve testar.
+4. No Android, autorize a instalação pelo navegador ou aplicativo que abriu o link, caso o sistema peça essa permissão, e instale o APK. Não é necessário instalar o Expo Go.
+5. Teste cadastro/login, criar um relato, escolher o ponto no mapa, enviar foto, abrir os relatos, comentar e, se configuradas as credenciais de push, notificações.
+
+O plano gratuito do EAS inclui uma quantidade mensal limitada de builds Android (atualmente até 15); há fila de menor prioridade e os limites podem mudar. Consulte [preços e cotas atuais do EAS](https://expo.dev/pricing). Para distribuir uma nova versão com mudanças nativas, gere e compartilhe outra build.
 
 ## Notificações
 

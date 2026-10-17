@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: minha-cidade-api
+    runtime: node
+    plan: free
+    rootDir: app_mobile/server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: MYSQL_HOST
+        sync: false
+      - key: MYSQL_PORT
+        sync: false
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false
+      - key: MYSQL_DATABASE
+        sync: false
+      - key: JWT_SECRET
+        sync: false
